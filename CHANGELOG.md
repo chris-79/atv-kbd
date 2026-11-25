@@ -16,13 +16,13 @@
 - Add "Show artwork" to the ⋯ menu for a shorter remote without the artwork (thanks @Lemelson)
 - Bigger close button on the remote, with a tooltip (thanks @Lemelson)
 - Keys now only control the Apple TV while the remote is the active window – typing in Settings no longer reaches the TV, and ⌘W there no longer disconnects. Shortcuts now need their exact modifiers: ⇧ with an arrow no longer moves (thanks @Lemelson)
-- Fix pairing waiting forever on a PIN the Apple TV never showed when macOS blocks Itsytv's local network access – Itsytv now says local network access is off and opens Privacy & Security, and goes on by itself once Itsytv is turned on under Local Network. The PIN entry now opens only once the Apple TV shows the PIN (#64, thanks @maxmadr)
+- Fix pairing waiting forever on a PIN the Apple TV never showed when macOS blocks atv-kbd's local network access – atv-kbd now says local network access is off and opens Privacy & Security, and goes on by itself once atv-kbd is turned on under Local Network. The PIN entry now opens only once the Apple TV shows the PIN (#64, thanks @maxmadr)
 
 ## 1.7.0
 
-- Add a welcome on first launch – Itsytv lives in the menu bar with no Dock icon or window, so when a full menu bar pushed its icon behind the notch, or the icon was turned off in System Settings → Menu Bar, a new user saw nothing at all. The welcome shows where to find it; while the icon is hidden it offers a lasting way in – Menu Bar settings, or keeping Itsytv in the Dock – and comes back on later launches until one of them works
+- Add a welcome on first launch – atv-kbd lives in the menu bar with no Dock icon or window, so when a full menu bar pushed its icon behind the notch, or the icon was turned off in System Settings → Menu Bar, a new user saw nothing at all. The welcome shows where to find it; while the icon is hidden it offers a lasting way in – Menu Bar settings, or keeping atv-kbd in the Dock – and comes back on later launches until one of them works
 - Add Show in Dock, in the menu bar menu and in Settings – a Dock icon that opens the remote
-- Opening Itsytv again from Spotlight, Finder or the Dock while it's running now shows the remote, or the device list if no Apple TV is paired yet – under the menu bar icon, or at the top centre of the screen when the icon is hidden
+- Opening atv-kbd again from Spotlight, Finder or the Dock while it's running now shows the remote, or the device list if no Apple TV is paired yet – under the menu bar icon, or at the top centre of the screen when the icon is hidden
 - The iPhone app suggestion (direct download) now waits until an Apple TV is paired, and never shows together with the welcome
 - Fix the Settings window: Launch at login works, and paired Apple TVs show by name and go away when removed
 - Ask for an App Store rating once the remote has been used on a few different days (App Store version only)
@@ -80,7 +80,7 @@
 
 ## 1.4.1
 
-- Fix system dock becoming inoperative after quitting itsytv (magnification and hover effects stopped working until another app was activated)
+- Fix system dock becoming inoperative after quitting atv-kbd (magnification and hover effects stopped working until another app was activated)
 
 ## 1.4.0
 
@@ -93,7 +93,7 @@
 ## 1.3.0
 
 - Add drag-to-reorder in the Apps tab — custom order is saved per device
-- Add Shortcuts action "Open itsytv remote" for quick access from Control Center, Shortcuts app, and Spotlight
+- Add Shortcuts action "Open atv-kbd remote" for quick access from Control Center, Shortcuts app, and Spotlight
 - Fix pairing credentials lost due to rpBA (Bluetooth address) rotation — device ID reverted to stable service name
 
 ## 1.2.1
