@@ -2,8 +2,8 @@
 set -e
 
 # Configuration
-APP_NAME="Itsytv"
-BUNDLE_ID="com.itsytv.app"
+APP_NAME="ATV KBD"
+BUNDLE_ID="com.atv-kbd.app"
 VERSION=$(grep 'MARKETING_VERSION:' project.yml | grep -v CFBundle | sed 's/.*: *"\(.*\)"/\1/')
 SIGNING_IDENTITY="Developer ID Application: Nikolajs Ustinovs (R892A93W42)"
 
@@ -11,7 +11,7 @@ SIGNING_IDENTITY="Developer ID Application: Nikolajs Ustinovs (R892A93W42)"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 DIST_DIR="$PROJECT_DIR/dist"
-ARCHIVE_PATH="$DIST_DIR/itsytv.xcarchive"
+ARCHIVE_PATH="$DIST_DIR/atv-kbd.xcarchive"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 DMG_PATH="$DIST_DIR/$APP_NAME-$VERSION.dmg"
 
@@ -26,7 +26,7 @@ xcodegen generate
 
 # Archive without signing (avoids profile conflicts with dependencies)
 echo "==> Archiving..."
-xcodebuild -scheme itsytv -configuration Release \
+xcodebuild -scheme atv-kbd -configuration Release \
     -destination 'generic/platform=macOS' \
     -archivePath "$ARCHIVE_PATH" \
     archive \
@@ -42,9 +42,9 @@ echo "==> Checking architectures..."
 lipo -info "$ARCHIVE_APP/Contents/MacOS/$APP_NAME"
 
 # Find Developer ID provisioning profile
-PROFILE_PATH=$(find ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles -name "*.provisionprofile" -exec sh -c 'security cms -D -i "$1" 2>/dev/null | grep -q "Itsytv Developer ID" && echo "$1"' _ {} \;)
+PROFILE_PATH=$(find ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles -name "*.provisionprofile" -exec sh -c 'security cms -D -i "$1" 2>/dev/null | grep -q "atv-kbd Developer ID" && echo "$1"' _ {} \;)
 if [ -z "$PROFILE_PATH" ]; then
-    echo "ERROR: 'Itsytv Developer ID' provisioning profile not found."
+    echo "ERROR: 'atv-kbd Developer ID' provisioning profile not found."
     echo "Download it from developer.apple.com and double-click to install."
     exit 1
 fi
@@ -63,12 +63,12 @@ done
 # Create resolved entitlements (Xcode variables aren't available during manual signing)
 # Also inject application-identifier, team-identifier, and keychain-access-groups
 # which Xcode adds automatically but manual codesign does not.
-RESOLVED_ENTITLEMENTS="$DIST_DIR/itsytv-resolved.entitlements"
-cp "$PROJECT_DIR/itsytv/itsytv-direct.entitlements" "$RESOLVED_ENTITLEMENTS"
+RESOLVED_ENTITLEMENTS="$DIST_DIR/atv-kbd-resolved.entitlements"
+cp "$PROJECT_DIR/atv-kbd/atv-kbd-direct.entitlements" "$RESOLVED_ENTITLEMENTS"
 
 # Inject entitlements that Xcode normally adds during signing
 sed -i '' 's|</dict>|    <key>com.apple.application-identifier</key>\
-    <string>R892A93W42.com.itsytv.app</string>\
+    <string>R892A93W42.com.atv-kbd.app</string>\
     <key>com.apple.developer.team-identifier</key>\
     <string>R892A93W42</string>\
     <key>keychain-access-groups</key>\
