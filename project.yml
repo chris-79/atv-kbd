@@ -63,6 +63,8 @@ targets:
           - "**/*.proto"
           - atv-kbd.entitlements
           - atv-kbd-direct.entitlements
+      - path: atv-kbd.icon
+        buildPhase: resources
     settings:
       base:
         INFOPLIST_FILE: atv-kbd/Info.plist
@@ -70,7 +72,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.atv-kbd.app
         PRODUCT_NAME: ATV KBD
         GENERATE_INFOPLIST_FILE: false
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_APPICON_NAME: atv-kbd
         MARKETING_VERSION: "1.9.1"
         CURRENT_PROJECT_VERSION: "19101"
         ENABLE_HARDENED_RUNTIME: true
