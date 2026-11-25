@@ -50,9 +50,13 @@ struct KeyboardWindowView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .ignoresSafeArea(edges: .top)
         .background(background.ignoresSafeArea())
+        .overlay(alignment: .topLeading) { windowControls }
         .preferredColorScheme(.dark)
+        .coordinateSpace(name: "kbd")
+        .onPreferenceChange(ControlHitAreaKey.self) { HitStore.shared.controls = $0 }
         .background(KeyCapture(input: $input, isPairing: isPairing, onPIN: handlePIN, onCommand: perform))
         .background(WindowChrome())
+        .background(HitBridge(onActivate: activateControl))
         .onAppear {
             guard !didAutoConnect else { return }
             didAutoConnect = true
@@ -80,6 +84,23 @@ struct KeyboardWindowView: View {
         guard shortcutsExpanded else { return 0 }
         let rows = CGFloat(KeyboardInput.hints(textMode: input.textMode).count)
         return rows * 18 + max(0, rows - 1) * 3 + 20
+    }
+
+    /// Red quits. Yellow hides. Drawn here so the black window cannot cover them.
+    private var windowControls: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(Color(red: 1, green: 0.373, blue: 0.341))
+                .frame(width: 12, height: 12)
+                .accessibilityLabel("Quit")
+            Circle()
+                .fill(Color(red: 0.996, green: 0.741, blue: 0.180))
+                .frame(width: 12, height: 12)
+                .accessibilityLabel("Hide")
+        }
+        .padding(.top, 16)
+        .padding(.leading, 10)
+        .allowsHitTesting(false)
     }
 
     private var header: some View {
@@ -111,6 +132,7 @@ struct KeyboardWindowView: View {
                         }
                         .buttonStyle(.plain)
                         .focusable(false)
+                        .controlHitArea("switch")
                     }
                 }
             }
@@ -145,12 +167,14 @@ struct KeyboardWindowView: View {
                 .buttonStyle(.plain)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.white)
+                .controlHitArea("privacy")
             }
         case .error:
             Button("Dismiss") { manager.disconnect() }
                 .buttonStyle(.plain)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.white)
+                .controlHitArea("dismiss")
         case .connecting, .connected:
             EmptyView()
         }
@@ -189,6 +213,7 @@ struct KeyboardWindowView: View {
                                         .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
+                                .controlHitArea(device.id, EdgeInsets(top: 1, leading: 12, bottom: 1, trailing: 12))
                             }
                         }
                         Spacer(minLength: 0)
@@ -239,6 +264,7 @@ struct KeyboardWindowView: View {
         }
         .buttonStyle(.plain)
         .focusable(false)
+        .controlHitArea("controls", EdgeInsets(top: 8, leading: 22, bottom: 8, trailing: 10))
     }
 
     private var shortcutList: some View {
@@ -339,6 +365,21 @@ struct KeyboardWindowView: View {
             pin.append(String(value))
             if pin.count == 4 {
                 manager.submitPIN(pin)
+            }
+        }
+    }
+
+    private func activateControl(_ id: String) {
+        switch id {
+        case "switch", "dismiss":
+            manager.disconnect()
+        case "controls":
+            shortcutsExpanded.toggle()
+        case "privacy":
+            SystemSettingsPane.privacySecurity.open()
+        default:
+            if let device = manager.discoveredDevices.first(where: { $0.id == id }) {
+                manager.connect(to: device)
             }
         }
     }
@@ -557,8 +598,8 @@ private struct WindowChrome: NSViewRepresentable {
             content.layer?.cornerRadius = 10
             content.layer?.masksToBounds = true
         }
-        installTrafficLights(window)
-        window.isMovableByWindowBackground = true
+        window.isMovable = true
+        window.isMovableByWindowBackground = false
         if !didCompactFrame {
             didCompactFrame = true
             Self.applyCompactFrame(window)
@@ -596,27 +637,6 @@ private struct WindowChrome: NSViewRepresentable {
         frame.origin.y += frame.height - height
         frame.size = NSSize(width: width, height: height)
         window.setFrame(frame, display: true)
-    }
-
-    /// Close and minimize sit directly on the black window.
-    private static func installTrafficLights(_ window: NSWindow) {
-        guard let host = window.contentView else { return }
-        let specs: [(String, NSColor, CGFloat, Selector)] = [
-            ("atv-close", NSColor(srgbRed: 1, green: 0.373, blue: 0.341, alpha: 1), 10, #selector(NSWindow.performClose(_:))),
-            ("atv-minimize", NSColor(srgbRed: 0.996, green: 0.741, blue: 0.180, alpha: 1), 26, #selector(NSWindow.miniaturize(_:)))
-        ]
-        let y: CGFloat = host.isFlipped ? 16 : host.bounds.height - 28
-        for spec in specs {
-            let light = (host.subviews.first { $0.identifier?.rawValue == spec.0 } as? TrafficLight) ?? TrafficLight()
-            light.identifier = NSUserInterfaceItemIdentifier(spec.0)
-            light.color = spec.1
-            light.action = spec.3
-            light.frame = NSRect(x: spec.2, y: y, width: 12, height: 12)
-            light.autoresizingMask = host.isFlipped ? [.maxYMargin] : [.minYMargin]
-            if light.superview !== host {
-                host.addSubview(light)
-            }
-        }
     }
 }
 
@@ -658,24 +678,132 @@ private final class ChromeView: NSView {
     }
 }
 
-/// A close or minimize circle that stays visible on the black window.
-private final class TrafficLight: NSView {
-    var color: NSColor = .red
-    var action: Selector = #selector(NSWindow.performClose(_:))
+private struct ControlHit: Equatable {
+    var id: String
+    var core: CGRect
+    var padded: CGRect
+}
 
-    override var isOpaque: Bool { false }
+private struct ControlHitAreaKey: PreferenceKey {
+    static var defaultValue: [ControlHit] = []
+    static func reduce(value: inout [ControlHit], nextValue: () -> [ControlHit]) {
+        value.append(contentsOf: nextValue())
+    }
+}
 
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        wantsLayer = true
+/// Remembers a larger hit target around a control. The padding does not change layout.
+private extension View {
+    func controlHitArea(_ id: String, _ insets: EdgeInsets = EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8)) -> some View {
+        background {
+            GeometryReader { proxy in
+                let core = proxy.frame(in: .named("kbd"))
+                Color.clear.preference(
+                    key: ControlHitAreaKey.self,
+                    value: [ControlHit(id: id, core: core, padded: core.expanded(by: insets))]
+                )
+            }
+        }
+    }
+}
+
+private extension CGRect {
+    func expanded(by insets: EdgeInsets) -> CGRect {
+        CGRect(
+            x: minX - insets.leading,
+            y: minY - insets.top,
+            width: width + insets.leading + insets.trailing,
+            height: height + insets.top + insets.bottom
+        )
     }
 
-    override func draw(_ dirtyRect: NSRect) {
-        color.setFill()
-        NSBezierPath(ovalIn: bounds).fill()
+    var area: CGFloat { width * height }
+}
+
+private final class HitStore {
+    static let shared = HitStore()
+    var controls: [ControlHit] = []
+    var onActivate: (String) -> Void = { _ in }
+}
+
+/// Keeps the click handler for the padded area around buttons.
+private struct HitBridge: NSViewRepresentable {
+    var onActivate: (String) -> Void
+
+    func makeNSView(context: Context) -> WindowDragView {
+        let view = WindowDragView()
+        view.install()
+        return view
     }
 
-    override func mouseDown(with event: NSEvent) {
-        window?.perform(action, with: nil)
+    func updateNSView(_ nsView: WindowDragView, context: Context) {
+        HitStore.shared.onActivate = onActivate
     }
+
+    static func dismantleNSView(_ nsView: WindowDragView, coordinator: Void) {
+        nsView.teardown()
+    }
+}
+
+private final class WindowDragView: NSView {
+    private var monitor: Any?
+    private var pendingID: String?
+    private var pendingPoint: CGPoint = .zero
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    func install() {
+        guard monitor == nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp]) { [weak self] event in
+            guard let self, let window = self.window, event.window === window, let host = window.contentView else { return event }
+            let point = host.convert(event.locationInWindow, from: nil)
+            let local = host.isFlipped ? point : CGPoint(x: point.x, y: host.bounds.height - point.y)
+            if event.type == .leftMouseUp {
+                return self.finishClick(at: local, event)
+            }
+            if let action = self.windowControlAction(for: event) {
+                NSApp.perform(action, with: nil)
+                return nil
+            }
+            let controls = HitStore.shared.controls
+            if controls.contains(where: { $0.core.contains(local) }) {
+                self.pendingID = nil
+                return event
+            }
+            if let pad = controls.filter({ $0.padded.contains(local) }).min(by: { $0.padded.area < $1.padded.area }) {
+                self.pendingID = pad.id
+                self.pendingPoint = local
+                return nil
+            }
+            self.pendingID = nil
+            window.performDrag(with: event)
+            return nil
+        }
+    }
+
+    private func finishClick(at local: CGPoint, _ event: NSEvent) -> NSEvent? {
+        guard let id = pendingID else { return event }
+        pendingID = nil
+        let moved = hypot(local.x - pendingPoint.x, local.y - pendingPoint.y)
+        if moved < 6 { HitStore.shared.onActivate(id) }
+        return nil
+    }
+
+    /// Red and yellow stay their drawn 12-point size, with no extra hit padding.
+    private func windowControlAction(for event: NSEvent) -> Selector? {
+        guard let host = window?.contentView else { return nil }
+        let point = host.convert(event.locationInWindow, from: nil)
+        let local = host.isFlipped ? point : CGPoint(x: point.x, y: host.bounds.height - point.y)
+        let close = CGRect(x: 10, y: 16, width: 12, height: 12)
+        let hide = CGRect(x: 30, y: 16, width: 12, height: 12)
+        if close.contains(local) { return #selector(NSApplication.terminate(_:)) }
+        if hide.contains(local) { return #selector(NSApplication.hide(_:)) }
+        return nil
+    }
+
+    func teardown() {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+    }
+
+    deinit { teardown() }
 }
